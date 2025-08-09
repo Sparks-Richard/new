@@ -31,7 +31,7 @@ localparam  wr_data_byte    =  8'b1101_1111; //df// 发送数据字节（写操�
 
 
 localparam  repeat_start	=  8'b0111_1101; //7D// 重复 START 条件
-//localparam  rd_data_byte    =  8'b1001_1111; //9f// 读取数据字节（读操作）
+localparam  rd_data_byte    =  8'b1001_1111; //9f// 读取数据字节（读操作）
 localparam  rd_dev_ctrl     =  8'b0110_1111; //6F// 发送设备地址（读）	
 //localparam  /*rd_reg_high*/     =  8'b0101_1111; //5f// 读取寄存器高字节
 //localparam  /*rd_reg_low*/      =  8'b0011_1111; //3f// 读取寄存器低字节
