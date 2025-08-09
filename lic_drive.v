@@ -141,6 +141,7 @@ end
 		// endcase
 	// end
 // end	
+
 //sda_t
 always @(posedge clk_i or negedge rst_n)
 begin
@@ -193,8 +194,6 @@ begin
 					sda_o	<= 1'b0;
 				end
 			end
-
-		
 
 			wr_dev_ctrl:begin
 				reg_h 		<= reg_h;
@@ -265,10 +264,7 @@ begin
 					end
 				end			
 			end
-		
 
-
-			
 			repeat_start : begin
 				rd_dev_r       <= {dev_r[7:1],1'b1} ; //读操作时，设备地址的最后一位为1
 				rd_data_byte_r <= data_byte_r ;
@@ -367,8 +363,7 @@ begin
 	end
 end
 //err
-always @(posedge clk_i or negedge rst_n)
-begin
+always @(posedge clk_i or negedge rst_n) begin
 	if(!rst_n) begin
 		err	<= 1'b0;
 	end
@@ -388,7 +383,6 @@ begin
 			end
 		endcase 
 	end
-
 end
 //busy
 always @(posedge clk_i or negedge rst_n)
