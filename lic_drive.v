@@ -22,14 +22,22 @@ module iic_drive(
 reg [  7:0]	nstate;
 reg [  7:0]	cstate;	
 
-localparam  idle        	=  8'b1111_1110; //fe
-localparam  start_bit  	    =  8'b1111_1101; //fd
-localparam  wr_dev_ctrl   	=  8'b1111_1011; //fb
-localparam  wr_reg_high	    =  8'b1111_0111; //f7
-localparam  wr_reg_low    	=  8'b1110_1111; //ef
-localparam  wr_data_byte    =  8'b1101_1111; //df
-localparam  i2c_over		=  8'b1011_1111; //bf
+localparam  idle        	=  8'b1111_1110; //fe// 空闲状态
+localparam  start_bit  	    =  8'b1111_1101; //fd// 发送 START 条件
+localparam  wr_dev_ctrl   	=  8'b1111_1011; //fb// 发送设备地址（写）
+localparam  wr_reg_high	    =  8'b1111_0111; //f7// 发送寄存器高字节
+localparam  wr_reg_low    	=  8'b1110_1111; //ef// 发送寄存器低字节
+localparam  wr_data_byte    =  8'b1101_1111; //df// 发送数据字节（写操作）
+localparam  i2c_over		=  8'b1011_1111; //bf// 传输结束
+
+//localparam  rd_data_byte    =  8'b1001_1111;  //9f// 读取数据字节（读操作）
+//localparam  rd_dev_ctrl    =  8'b0111_1111; //7f// 发送设备地址（读）	
+//localparam  rd_reg_high    =  8'b0101_1111;	 //5f// 读取寄存器高字节
+//localparam  rd_reg_low     =  8'b0011_1111; //3f// 读取寄存器低字节
+
+
 //localparam  i2c_ack    		=  8'b0111_1111;  //7f
+
 reg [  7:0]	dev_r;
 reg [  7:0]	reg_h;
 reg [  7:0]	reg_l;
@@ -50,7 +58,7 @@ reg [ 15:0] Rec_count;
 	// .probe4					(register[7:0])
 // );
 
-always @(*) begin
+always @(*) begin//状态机的一个转换
     case (cstate)
 		idle:			nstate <=	(start_en)		? start_bit 	: idle;
 		start_bit:		nstate <=	(State_turn)	? wr_dev_ctrl	: start_bit;
@@ -120,9 +128,9 @@ begin
 				end				
 				else begin
 					sda_t	<= 1'b0;
-				end		
+				end		  
 			end
-			i2c_over:		sda_t	<= 1'b0;
+			i2c_over:		sda_t	<= 1'b0;//因为主机要控制stop
 		endcase
 	end
 end		
@@ -151,7 +159,7 @@ begin
 				reg_l 		<= register[ 7:0];	
 				data_byte_r <= data_byte;	
 				if(Rec_count >=16'd3)begin
-					sda_o	<= dev_r[7];				
+					sda_o	<= dev_r[7];				        
 				end	
 				else begin
 					sda_o	<= 1'b0;
@@ -172,8 +180,8 @@ begin
 					if(!scl)begin
 						dev_r <= {dev_r[6:0],dev_r[7]};
 					end
-				end				
-			end		
+				end
+			end
 			wr_reg_high:begin
 				dev_r 		<= dev_r;
 				reg_l 		<= reg_l;
@@ -208,7 +216,7 @@ begin
 					end
 				end			
 			end
-			wr_data_byte:begin
+			wr_data_byte:begin                      
 				dev_r 		<= dev_r;
 				reg_h 		<= reg_h;
 				reg_l 		<= reg_l;			
@@ -334,3 +342,4 @@ IOBUF#(
 
 
 endmodule
+  

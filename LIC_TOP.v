@@ -22,11 +22,11 @@
 
 module IIC_Top(
 	inout 						SDI,
-	output 						SCK,
-	input						clk_8m,
-	input 						rst_n,
-	input						IIC_en_tri,
-	output 						IIC_config_busy
+	output 						SCK
+//	input						clk_8m,
+//	input 						rst_n,
+//	input						IIC_en_tri,
+//	output 						IIC_config_busy
     );
 	
 reg 	 [3:0]		count_reg;
@@ -67,6 +67,27 @@ end
 
 
 
+reg clk_8m;
+reg rst_n;
+reg IIC_en_tri;
+
+
+initial begin
+	clk_8m = 1'b0;
+forever begin
+	#(50) clk_8m = ~clk_8m;
+end
+end
+
+
+initial begin
+	rst_n = 1'b0;
+	IIC_en_tri = 1'b0;
+	#(10000) rst_n = 1'b1;
+	#(10000) IIC_en_tri = 1'b1;
+
+	#(10000) IIC_en_tri = 1'b0;
+end
 iic_drive iic_drive_r(
 	.clk_8m				(clk_8m),
 	.clk_i				(clk_i				), 
