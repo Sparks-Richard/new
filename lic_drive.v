@@ -48,7 +48,7 @@ reg [  7:0] data_byte_r;
 reg [  7:0] rd_dev_r;
 reg [  7:0] rd_reg_h;
 reg [  7:0] rd_reg_l;
-reg [  7:0] rd_data_byte_r;//存储写进来的数据
+reg [  7:0] i2c_rx_data;//存储写进来的数据
 
 reg 		sda_o;
 wire 		sda_i;
@@ -65,6 +65,13 @@ reg [ 15:0] Rec_count;
 	// .probe4					(register[7:0])
 // );
 
+// 在寄存器声明区域添加：
+reg [7:0] i2c_rx_data;  // 替换原有的rd_data_byte_r
+
+// 在复位逻辑中初始化：
+always @(posedge clk_i) begin
+  if (!rst_n) i2c_rx_data <= 8'h00;
+end
 always @(*) begin
     case (cstate)
 		idle:			nstate <=	(start_en)		? start_bit 	: idle;
@@ -108,7 +115,7 @@ always @(posedge clk_i or negedge rst_n) begin
 			rd_dev_ctrl,
 			/*rd_reg_high*/,
 			/*rd_reg_low*/,
-			rd_data_byte_r:	scl	<= ~scl;
+			rd_data_byte:	scl	<= ~scl;
 
 			i2c_over:begin
 				/*
@@ -150,7 +157,7 @@ begin
 		case (nstate)
 			idle:			sda_t	<= 1'b1;
 			start_bit,repeat_start:		sda_t	<= 1'b0;	
-			rd_data_byte_r:sda_t	<= 1'b1;
+			rd_data_byte:sda_t	<= 1'b1;
 			wr_dev_ctrl,wr_reg_high,wr_reg_low,wr_data_byte:begin
 				if(Rec_count ==16'd15 || Rec_count == 16'd16)begin
 					sda_t	<= 1'b1;
@@ -267,7 +274,7 @@ begin
 
 			repeat_start : begin
 				rd_dev_r       <= {dev_r[7:1],1'b1} ; //读操作时，设备地址的最后一位为1
-				rd_data_byte_r <= data_byte_r ;
+				i2c_rx_data <= data_byte_r ;
 				if(Rec_count >=16'd3)begin
 					sda_o	<= dev_r[7];				        
 				end	
@@ -277,7 +284,7 @@ begin
 			end
 			rd_dev_ctrl:begin
 				rd_dev_r       <= rd_dev_r;
-				rd_data_byte_r <= rd_data_byte_r ;		
+				i2c_rx_data <= i2c_rx_data ;		
 				if(Rec_count ==16'd15 || Rec_count == 16'd16)begin
 					sda_o	<= 1'b1;
 				end		
@@ -294,7 +301,7 @@ begin
 		
 			rd_data_byte:begin
 				rd_dev_r       <= rd_dev_r;
-				rd_data_byte_r <= rd_data_byte_r ;		
+				i2c_rx_data <= i2c_rx_data ;		
 				if(Rec_count ==16'd15 || Rec_count == 16'd16)begin
 					sda_o	<= 1'b1;
 				end		
@@ -302,9 +309,9 @@ begin
 					sda_o	<= 1'b0;
 				end				
 				else begin
-					sda_o	<= rd_data_byte_r[7];
+					sda_o	<= i2c_rx_data[7];
 					if(!scl)begin
-						rd_data_byte_r <= {rd_data_byte_r[6:0],sda_i};
+						i2c_rx_data <= {i2c_rx_data[6:0],sda_i};
 					end
 				end
 			end
@@ -314,7 +321,7 @@ begin
 				reg_h 		<= reg_h;
 				reg_l 		<= reg_l;
 				data_byte_r <= data_byte_r;
-				rd_data	 <= rd_data_byte_r;
+				rd_data	 <= i2c_rx_data;
 				if(Rec_count <= 16'd1)begin
 					sda_o	<= 1'b0;
 				end
@@ -349,7 +356,7 @@ begin
 					State_turn  <= 1'b0;
 				end				
 			end
-			wr_dev_ctrl,wr_reg_high,wr_reg_low,wr_data_byte,rd_dev_ctrl,rd_data_byte_r:begin
+			wr_dev_ctrl,wr_reg_high,wr_reg_low,wr_data_byte,rd_dev_ctrl,rd_data_byte:begin
 				if (Rec_count == 16'd18 - 1'b1) begin
 					Rec_count  	<= 16'd0;
 					State_turn  <=  1'b1;
@@ -372,7 +379,7 @@ always @(posedge clk_i or negedge rst_n) begin
 			idle,i2c_over,start_bit,repeat_start:	begin
 				err	<= err;
 			end
-			wr_dev_ctrl,wr_reg_high,wr_reg_low,wr_data_byte,rd_dev_ctrl,rd_data_byte_r:begin
+			wr_dev_ctrl,wr_reg_high,wr_reg_low,wr_data_byte,rd_dev_ctrl,rd_data_byte:begin
 				if(Rec_count==16'd16) begin
 					if(sda_i) 	err	<= 1'b1;
 					else 		err	<= 1'b0;
@@ -391,7 +398,7 @@ begin
 	else begin
 		case (nstate)
 			idle: busy	<= 1'b0;
-			wr_dev_ctrl,wr_reg_high,wr_reg_low,wr_data_byte,i2c_over,start_bit,repeat_start,rd_dev_ctrl,rd_data_byte_r: busy	<= 1'b1;
+			wr_dev_ctrl,wr_reg_high,wr_reg_low,wr_data_byte,i2c_over,start_bit,repeat_start,rd_dev_ctrl,rd_data_byte: busy	<= 1'b1;
 		endcase 
 	end
 
