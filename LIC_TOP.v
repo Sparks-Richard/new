@@ -75,37 +75,22 @@ reg IIC_en_tri;
 
 initial begin
 	clk_8m = 1'b0;
-	rst_n = 1'b0;
-	#100 rst_n = 1'b1;
 forever begin
 	#(50) clk_8m = ~clk_8m;
 end
 end
 
-// assign TRI = (R1[0] & !R1[1])?  1'b1 : 1'b0;
-// reg [1:0] R1;
-// always  @(posedge clk_8m) begin 
-// 	if(rst_n == 1'b0) begin
-// 		R1 <= 2'b00;
-// 	end
-// 	else begin
-// 		R1[1] <= R1[0];
-// 		R1[0] <= R;
-// 	end
-	
-// end
 
-// reg R;
+initial begin
+	rst_n = 1'b0;
+	R = 1'b0;
+	IIC_en_tri = 1'b0;
+	#(10000) rst_n = 1'b1;
+	#(10000) IIC_en_tri = 1'b1;
 
-// initial begin
-// 	rst_n = 1'b0;
-// 	R = 1'b0;
-// 	IIC_en_tri = 1'b0;
-// 	#(10000) rst_n = 1'b1;
-// 	#(10000) IIC_en_tri = 1'b1;
+	#(10000) IIC_en_tri = 1'b0;
 
-// 	#(10000) IIC_en_tri = 1'b0;
-// end
+end
 
 iic_drive iic_drive_r(
 	.clk_8m				(clk_8m				),
