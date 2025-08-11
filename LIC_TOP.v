@@ -22,7 +22,7 @@
 
 module IIC_Top(
 	inout 						SDI,
-	output 						SCK
+	output 						SCK,
 //	input						clk_8m,
 //	input 						rst_n,
 //	input						IIC_en_tri,
