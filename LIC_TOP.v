@@ -42,6 +42,7 @@ wire 				err;
 wire 				start_en;
 wire 				wr_rd_flag;
 wire 				IIC_START;
+//reg                 start_en;
 assign IIC_START = IIC_en_tri_r[1]&(!IIC_en_tri_r[0]);
 always @(posedge clk_8m or negedge rst_n) begin
 	if(!rst_n) begin
@@ -70,7 +71,7 @@ end
 
 reg clk_8m;
 reg rst_n;
-reg IIC_en_tri;
+reg IIC_en_tri; 
 
 
 initial begin
@@ -83,11 +84,12 @@ end
 
 initial begin
 	rst_n = 1'b0;
-	R = 1'b0;
+    //start_en = 1'b0;
+	//R = 1'b0;
 	IIC_en_tri = 1'b0;
 	#(10000) rst_n = 1'b1;
 	#(15000) IIC_en_tri = 1'b1;
-
+   // #(1000) start_en= 1'b1;
 	#(15000) IIC_en_tri = 1'b0;
 
 end

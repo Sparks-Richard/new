@@ -17,16 +17,19 @@ module iic_drive(
 );
 
 
-localparam  idle         = 8'b1111_1110; // 空闲状态
-localparam  start_bit    = 8'b1111_1101; // START条件
-localparam  wr_dev_ctrl  = 8'b1111_1011; // 写设备地址
-localparam  wr_reg_high  = 8'b1111_0111; // 写寄存器高字节
-localparam  wr_reg_low   = 8'b1110_1111; // 写寄存器低字节
-localparam  wr_data_byte = 8'b1101_1111; // 写数据字节
-localparam  repeat_start = 8'b0111_1101; // 重复START
-localparam  rd_dev_ctrl  = 8'b0110_1111; // 读设备地址
-localparam  rd_data_byte = 8'b1001_1111; // 读数据字节
-localparam  i2c_over     = 8'b1011_1111; // 传输结束
+localparam  idle         = 8'b1111_1110; // FE - 空闲状态（等待启动）
+localparam  start_bit    = 8'b1111_1101; // FD - 起始位状态（产生START条件）
+localparam  wr_dev_ctrl  = 8'b1111_1011; // FB - 写设备控制字（地址+写标志）
+localparam  wr_reg_high  = 8'b1111_0111; // F7 - 写寄存器高字节
+localparam  wr_reg_low   = 8'b1110_1111; // EF - 写寄存器低字节
+localparam  wr_data_byte = 8'b1101_1111; // DF - 写数据字节
+localparam  repeat_start = 8'b1011_1111; // BF - 重复起始位（读操作前）
+localparam  rd_dev_ctrl  = 8'b0111_1111; // 7F - 读设备控制字（地址+读标志）
+localparam  rd_data_byte = 8'b0111_1110; // 7E - 读数据字节
+localparam  i2c_over     = 8'b1011_1101; // BD - 传输结束（产生STOP条件）
+localparam  i2c_ack      = 8'b0111_1011; // 7B - 等待/应答ACK周期
+
+
 
 
 reg [7:0] nstate;
@@ -108,6 +111,7 @@ end
 
 always @(posedge clk_i or negedge rst_n) begin
     if (!rst_n) begin
+        sda<=1'b1;
         sda_o <= 1'b1;
         dev_r <= 8'hff;
         reg_h <= 8'hff;
