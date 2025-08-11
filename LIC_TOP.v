@@ -86,9 +86,9 @@ initial begin
 	R = 1'b0;
 	IIC_en_tri = 1'b0;
 	#(10000) rst_n = 1'b1;
-	#(10000) IIC_en_tri = 1'b1;
+	#(15000) IIC_en_tri = 1'b1;
 
-	#(10000) IIC_en_tri = 1'b0;
+	#(15000) IIC_en_tri = 1'b0;
 
 end
 
