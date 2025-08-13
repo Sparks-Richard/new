@@ -13,7 +13,9 @@ module iic_drive(
     inout               sda,
     output reg          busy,
     output reg          err,
-    output reg [7:0]    rd_data
+    output reg [7:0]    rd_data,
+    output reg sda_o,
+    input  [7:0]    cam_data_byte// 摄像头数据字节输入
 );
 
 
@@ -27,7 +29,7 @@ localparam  repeat_start = 8'b1011_1111; // BF - 重复起始位（读操作前�
 localparam  rd_dev_ctrl  = 8'b0111_1111; // 7F - 读设备控制字（地址+读标志）
 localparam  rd_data_byte = 8'b0111_1110; // 7E - 读数据字节
 localparam  i2c_over     = 8'b1011_1101; // BD - 传输结束（产生STOP条件）
-localparam  i2c_ack      = 8'b0111_1011; // 7B - 等待/应答ACK周期
+//localparam  i2c_ack      = 8'b0111_1011; // 7B - 等待/应答ACK周期
 
 
 
@@ -75,10 +77,10 @@ always @(posedge clk_i or negedge rst_n) begin
     end else begin
         case (nstate)
             idle: scl <= 1'b1;
-            start_bit, repeat_start: 
+            start_bit: 
                 scl <= (Rec_count >= 16'd2) ? 1'b0 : 1'b1;
             wr_dev_ctrl, wr_reg_high, wr_reg_low, wr_data_byte, 
-            rd_dev_ctrl, rd_data_byte: scl <= ~scl;
+            rd_dev_ctrl, rd_data_byte,repeat_start: scl <= ~scl;
             i2c_over: scl <= 1'b1;
             default: scl <= 1'b1; // 默认保持高电平
         endcase
@@ -100,7 +102,7 @@ always @(posedge clk_i or negedge rst_n) begin
                 end
                 else    sda_t <= 1'b1;
             end
-            wr_dev_ctrl, wr_reg_high, wr_reg_low, wr_data_byte: 
+            wr_dev_ctrl, wr_reg_high, wr_reg_low, wr_data_byte,rd_dev_ctrl: 
                 sda_t <= (Rec_count == 16'd15 || Rec_count == 16'd16) ? 1'b1 : 1'b0;
             i2c_over: sda_t <= 1'b0;
             default: sda_t <= 1'b1;
@@ -111,7 +113,7 @@ end
 
 always @(posedge clk_i or negedge rst_n) begin
     if (!rst_n) begin
-        sda<=1'b1;
+        //sda<=1'b1;
         sda_o <= 1'b1;
         dev_r <= 8'hff;
         reg_h <= 8'hff;
@@ -132,6 +134,7 @@ always @(posedge clk_i or negedge rst_n) begin
                 reg_h <= register[15:8];
                 reg_l <= register[7:0];
                 data_byte_r <= data_byte;
+                // rd_data_byte_r <= cam_data_byte;
                 if (Rec_count >= 16'd3) begin
                     sda_o <= dev_r[7];
                 end else begin
@@ -195,27 +198,29 @@ always @(posedge clk_i or negedge rst_n) begin
             rd_dev_ctrl: begin
                 if (Rec_count == 16'd15 || Rec_count == 16'd16) begin
                     sda_o <= 1'b1;
-                end else if (Rec_count == 16'd17) begin
-                    sda_o <= rd_dev_r[7];
-                end else begin
+                // end else if (Rec_count == 16'd17) begin
+                //     sda_o <= rd_dev_r[7];//存疑
+                // 
+                end 
+                else begin
                     sda_o <= rd_dev_r[7];
                     if (!scl) rd_dev_r <= {rd_dev_r[6:0], rd_dev_r[7]};
                 end
             end
             
             rd_data_byte: begin
-                if (Rec_count == 16'd15 || Rec_count == 16'd16) begin
-                    sda_o <= 1'b1;
-                end else if (Rec_count == 16'd17) begin
+                if (Rec_count == 16'd16 || Rec_count == 16'd17) begin
+                    sda_o<= 1'b1;// 读数据字节时，ACK/NACK信号
+                end else //if (Rec_count == 16'd17) begin
                     sda_o <= 1'b0;
-                end else begin
-                    sda_o <= rd_data_byte_r[7];
-                    if (!scl) rd_data_byte_r <= {rd_data_byte_r[6:0], sda_i};
-                end
+                //end else begin
+                 //   sda_o <= rd_data_byte_r[7];
+                 //   if (!scl) rd_data_byte_r <= {rd_data_byte_r[6:0], sda_o};
+               // end
             end
             
             i2c_over: begin
-                rd_data <= rd_data_byte_r;
+                //rd_data <= rd_data_byte_r;
                 if (Rec_count <= 16'd1) begin
                     sda_o <= 1'b0;
                 end else begin
@@ -226,6 +231,24 @@ always @(posedge clk_i or negedge rst_n) begin
             default: sda_o <= 1'b1;
         endcase
     end
+end
+
+always @(posedge clk_i or negedge rst_n) begin 
+    if (!rst_n) begin 
+        rd_data <= 8'hff; // 默认高电
+    end
+    else case (nstate)
+        idle: begin
+            rd_data<= 8'hff;
+        end
+        rd_data_byte: begin
+            
+            if (scl && Rec_count[0] && Rec_count < 16'd16) begin
+                rd_data <= {rd_data[6:0], sda_i}; // 右移存储
+            end
+        end
+        default: rd_data<= rd_data; 
+    endcase
 end
 
 always @(posedge clk_i or negedge rst_n) begin
@@ -272,6 +295,13 @@ always @(posedge clk_i or negedge rst_n) begin
             rd_dev_ctrl: begin
                 if (Rec_count == 16'd16) begin
                     err <= sda_i; // ACK检测
+                end
+            end
+            rd_data_byte: begin
+                if (Rec_count == 16'd16) begin
+                   err <= (sda_i == 1'b0); // 如果SDA低电平则错误
+                end else begin
+                    err <= err; // 在读数据字节时，保持err为0
                 end
             end
             default: err <= err;
