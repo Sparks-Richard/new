@@ -31,20 +31,26 @@ module IIC_Top(
 //	output 						IIC_config_busy
     );
 	
-reg 	 [3:0]		count_reg;
+reg 	[ 3:0]		count_reg;
 reg 				clk_i;
-reg 	 [1:0]		IIC_en_tri_r;
+reg 	[ 1:0]		IIC_en_tri_r;
 wire				IIC_config_busy;
-wire	 [7:0]   	i2c_device_addr;
+wire	[ 7:0]   	i2c_device_addr;
 wire	[15:0]   	register;
-wire	 [7:0]   	data_byte;
-wire [7:0] rd_data;  // 添加这行
+wire	[ 7:0]   	data_byte;
+wire 	[ 7:0] 		rd_data;  
 wire 				busy;
 wire 				err;
 wire 				start_en;
 wire 				wr_rd_flag;
 wire 				IIC_START;
-//reg                 start_en;
+
+reg IIC_en_tri;    // 新增IIC使能信号寄存器
+wire rst_n;         // 新增复位信号寄存器 
+wire clk_8m;       // 新增时钟信号线
+wire sda_o;        // 新增SDA输出信号
+
+wire sda_o;
 assign IIC_START = IIC_en_tri_r[1]&(!IIC_en_tri_r[0]);
 always @(posedge clk_8m or negedge rst_n) begin
 	if(!rst_n) begin
@@ -83,28 +89,17 @@ end
 // end
 // end
 
-  clk_wiz_0 clk_wiz_u
-   (
-    // Clock out ports
-    .clk_out1(clk_8m),     // output clk_out1
-    // Status and control signals
-    .locked(rst_n),       // output locked
-   // Clock in ports
-    .clk_in1_p(sysclk_p),    // input clk_in1_p
-    .clk_in1_n(sysclk_n)    // input clk_in1_n
-);
 // initial begin
 // 	rst_n = 1'b0;
-//     //start_en = 1'b0;
-// 	//R = 1'b0;
+ 
 // 	IIC_en_tri = 1'b0;
 // 	#(10000) rst_n = 1'b1;
 // 	#(15000) IIC_en_tri = 1'b1;
-//    // #(1000) start_en= 1'b1;
 // 	#(15000) IIC_en_tri = 1'b0;
 
 // end
-wire sda_o;
+
+
 iic_drive iic_drive_r(
 	.clk_8m				(clk_8m				),
 	.clk_i				(clk_i				), 
@@ -119,7 +114,18 @@ iic_drive iic_drive_r(
 	.busy				(busy				),
 	.err                (err                ),
 	.rd_data			(rd_data			),
-	.sda_o(sda_o)	
+	.sda_o				(sda_o)	
+);
+
+  clk_wiz_0 clk_wiz_u
+   (
+    // Clock out ports
+    .clk_out1(clk_8m),     // output clk_out1
+    // Status and control signals
+    .locked(rst_n),       // output locked
+   // Clock in ports
+    .clk_in1_p(sysclk_p),    // input clk_in1_p
+    .clk_in1_n(sysclk_n)    // input clk_in1_n
 );
 
 vio_0 vio_u (
@@ -134,7 +140,6 @@ vio_0 vio_u (
 
 ila_0 ila_u (
 	.clk(clk_8m), // input wire clk
-
 
 	.probe0(sda_o), // input wire [0:0]  probe0  
 	.probe1(SCK), // input wire [0:0]  probe1 
@@ -176,4 +181,28 @@ ila_0 ila_u (
 
 
 endmodule
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

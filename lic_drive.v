@@ -6,7 +6,7 @@ module iic_drive(
     input               rst_n,
     input               wr_rd_flag, // 0:写 1:读
     input               start_en,
-    input       [7:0]   i2c_device_addr,
+    input        [7:0]   i2c_device_addr,
     input       [15:0]  register,
     input       [7:0]   data_byte,
     output reg          scl,
@@ -15,7 +15,11 @@ module iic_drive(
     output reg          err,
     output reg [7:0]    rd_data,
     output reg sda_o,
-    input  [7:0]    cam_data_byte// 摄像头数据字节输入
+     output reg    sda_t  // 新增三态控制端口
+
+    //input  [7:0]    cam_data_byte// 摄像头数据字节输入
+    //output wire [15:0] Rec_count;
+    //output wire [7:0] nstate;
 );
 
 
@@ -35,7 +39,7 @@ localparam  i2c_over     = 8'b1011_1101; // BD - 传输结束（产生STOP条件
 
 
 reg [7:0] nstate;
-reg [7:0] cstate;  
+reg [7:0] cstate; 
 reg [7:0] dev_r;
 reg [7:0] reg_h;
 reg [7:0] reg_l;
@@ -44,9 +48,9 @@ reg [7:0] rd_dev_r;
 reg [7:0] rd_reg_h;
 reg [7:0] rd_reg_l;
 reg [7:0] rd_data_byte_r;  // 接收数据寄存器
-reg       sda_o;
+
 wire      sda_i;
-reg       sda_t;
+//reg       sda_t;
 reg       State_turn;
 reg [15:0] Rec_count;
 
@@ -66,7 +70,7 @@ always @(*) begin
         rd_dev_ctrl: nstate = (State_turn) ? rd_data_byte : rd_dev_ctrl;
         rd_data_byte: nstate = (State_turn) ? i2c_over : rd_data_byte;
         i2c_over:    nstate = (State_turn) ? idle : i2c_over;
-        //default:     nstate = idle; // 必须的默认分支
+        default:     nstate = idle; // 必须的默认分支
     endcase
 end
 
@@ -187,7 +191,7 @@ always @(posedge clk_i or negedge rst_n) begin
             end
             
             repeat_start: begin
-                rd_dev_r <= {dev_r[7:1], 1'b1};
+                rd_dev_r <= {i2c_device_addr[7:1], 1'b0};
                 if (Rec_count >= 16'd3) begin
                     sda_o <= dev_r[7];
                 end else begin
@@ -209,7 +213,7 @@ always @(posedge clk_i or negedge rst_n) begin
             end
             
             rd_data_byte: begin
-                if (Rec_count == 16'd16 || Rec_count == 16'd17) begin
+                if (Rec_count == 16'd15 || Rec_count == 16'd16) begin
                     sda_o<= 1'b1;// 读数据字节时，ACK/NACK信号
                 end else //if (Rec_count == 16'd17) begin
                     sda_o <= 1'b0;
@@ -304,7 +308,7 @@ always @(posedge clk_i or negedge rst_n) begin
                     err <= err; // 在读数据字节时，保持err为0
                 end
             end
-            default: err <= err;
+            default: err <= 1'b0;
         endcase
     end
 end
