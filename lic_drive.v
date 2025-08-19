@@ -15,11 +15,13 @@ module iic_drive(
     output reg          err,
     output reg [7:0]    rd_data,
     output reg sda_o,
-     output reg    sda_t  // 新增三态控制端口
-
+  
+  // 改为纯输出
+    output reg sda_t   ,   // 三态控制信号（需监控）
+    input sda_i  ,      // 新增：SDA输入状态
     //input  [7:0]    cam_data_byte// 摄像头数据字节输入
-    //output wire [15:0] Rec_count;
-    //output wire [7:0] nstate;
+    output wire [15:0] Rec_count,
+    output wire [7:0] nstate
 );
 
 
@@ -49,13 +51,13 @@ reg [7:0] rd_reg_h;
 reg [7:0] rd_reg_l;
 reg [7:0] rd_data_byte_r;  // 接收数据寄存器
 
-wire      sda_i;
+
 //reg       sda_t;
 reg       State_turn;
 reg [15:0] Rec_count;
 
-assign sda = sda_t ? 1'bz : sda_o;
-assign sda_i = sda;
+
+//assign sda_i = sda;
 
 
 always @(*) begin
@@ -84,7 +86,11 @@ always @(posedge clk_i or negedge rst_n) begin
             start_bit: 
                 scl <= (Rec_count >= 16'd2) ? 1'b0 : 1'b1;
             wr_dev_ctrl, wr_reg_high, wr_reg_low, wr_data_byte, 
-            rd_dev_ctrl, rd_data_byte,repeat_start: scl <= ~scl;
+            rd_dev_ctrl, rd_data_byte: scl <= ~scl;
+           
+            repeat_start: scl <= 1'b1;
+
+
             i2c_over: scl <= 1'b1;
             default: scl <= 1'b1; // 默认保持高电平
         endcase
@@ -100,14 +106,16 @@ always @(posedge clk_i or negedge rst_n) begin
             idle: sda_t <= 1'b1;
             start_bit, repeat_start: sda_t <= 1'b0;
             rd_data_byte: begin 
-                if (Rec_count == 16'd15 || Rec_count == 16'd16) begin
+                if (Rec_count == 16'd15 || Rec_count == 16'd16|| Rec_count == 16'd17) begin
                     sda_t <= 1'b0;
 
                 end
                 else    sda_t <= 1'b1;
             end
-            wr_dev_ctrl, wr_reg_high, wr_reg_low, wr_data_byte,rd_dev_ctrl: 
+            wr_dev_ctrl, wr_reg_high, wr_reg_low, wr_data_byte: 
                 sda_t <= (Rec_count == 16'd15 || Rec_count == 16'd16) ? 1'b1 : 1'b0;
+
+            rd_dev_ctrl: sda_t <= (Rec_count == 16'd15 || Rec_count == 16'd16|| Rec_count == 16'd17) ? 1'b1 : 1'b0;
             i2c_over: sda_t <= 1'b0;
             default: sda_t <= 1'b1;
         endcase
@@ -134,7 +142,7 @@ always @(posedge clk_i or negedge rst_n) begin
             end
             
             start_bit: begin
-                dev_r <= {i2c_device_addr[7:1], 1'b0};
+                dev_r <= {i2c_device_addr[6:0], 1'b0};
                 reg_h <= register[15:8];
                 reg_l <= register[7:0];
                 data_byte_r <= data_byte;
@@ -171,9 +179,13 @@ always @(posedge clk_i or negedge rst_n) begin
             wr_reg_low: begin
                 if (Rec_count == 16'd15 || Rec_count == 16'd16) begin
                     sda_o <= 1'b1;
-                end else if (Rec_count == 16'd17) begin
+                end else if (Rec_count == 16'd17 && wr_rd_flag == 1'b0) begin
                     sda_o <= data_byte_r[7];
-                end else begin
+                end 
+                else if (Rec_count == 16'd17 && wr_rd_flag == 1'b1) begin
+                    sda_o <= 1'b1; // 如果是读操作，发送ACK信号
+                end
+                else begin
                     sda_o <= reg_l[7];
                     if (!scl) reg_l <= {reg_l[6:0], reg_l[7]};
                 end
@@ -191,11 +203,11 @@ always @(posedge clk_i or negedge rst_n) begin
             end
             
             repeat_start: begin
-                rd_dev_r <= {i2c_device_addr[7:1], 1'b0};
-                if (Rec_count >= 16'd3) begin
+                rd_dev_r <= {i2c_device_addr[6:0], 1'b1};
+                if (Rec_count == 16'd9) begin
                     sda_o <= dev_r[7];
                 end else begin
-                    sda_o <= 1'b0;
+                    sda_o <= 1'b1;
                 end
             end
             
@@ -247,7 +259,7 @@ always @(posedge clk_i or negedge rst_n) begin
         end
         rd_data_byte: begin
             
-            if (scl && Rec_count[0] && Rec_count < 16'd16) begin
+            if (scl && Rec_count < 16'd16) begin
                 rd_data <= {rd_data[6:0], sda_i}; // 右移存储
             end
         end
@@ -265,8 +277,19 @@ always @(posedge clk_i or negedge rst_n) begin
                 Rec_count <= 16'd0;
                 State_turn <= 1'b0;
             end
-            
-            start_bit, repeat_start, i2c_over: begin
+            repeat_start: begin
+                if (Rec_count == 16'd9) begin
+                    Rec_count <= 16'd0;
+                    State_turn <= 1'b1;
+                end
+                     else begin
+                    Rec_count <= Rec_count + 1'b1;
+                    State_turn <= 1'b0;
+                end
+                
+            end
+
+            start_bit,  i2c_over: begin
                 if (Rec_count == 16'd3) begin // 4周期计数
                     Rec_count <= 16'd0;
                     State_turn <= 1'b1;

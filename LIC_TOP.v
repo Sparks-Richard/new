@@ -24,13 +24,16 @@ module IIC_Top(
 	inout 						SDI,
 	output 						SCK,
 	input						sysclk_p,
-	input						sysclk_n
+	input						sysclk_n,
+	output 						clk_24m
+
 //	input						clk_8m,
 //	input 						rst_n,
-//	input						IIC_en_tri,
-//	output 						IIC_config_busy
-    );
+	//input		wire				IIC_en_tri,
+	//output 		wire				IIC_config_busy
 	
+     );
+
 reg 	[ 3:0]		count_reg;
 reg 				clk_i;
 reg 	[ 1:0]		IIC_en_tri_r;
@@ -44,13 +47,23 @@ wire 				err;
 wire 				start_en;
 wire 				wr_rd_flag;
 wire 				IIC_START;
-
-reg IIC_en_tri;    // 新增IIC使能信号寄存器
+wire [7:0]         	nstate;
+wire [15:0]        	Rec_count;
+//reg IIC_en_tri;    // 新增IIC使能信号寄存器
 wire rst_n;         // 新增复位信号寄存器 
 wire clk_8m;       // 新增时钟信号线
 wire sda_o;        // 新增SDA输出信号
+// assign register = 16'h3107;
+//  assign i2c_device_addr = 8'h6C;
+wire TESTSDI; 
 
-wire sda_o;
+assign TESTSDI = SDI; // 连接SDI到测试端口
+// 内部信号
+    wire sda_o, sda_t, sda_i;
+    
+    // 三态控制实现（放在顶层）
+    assign SDI = sda_t ? 1'bz : sda_o;  
+    assign sda_i = SDI;  // 持续监控SDA线状态
 assign IIC_START = IIC_en_tri_r[1]&(!IIC_en_tri_r[0]);
 always @(posedge clk_8m or negedge rst_n) begin
 	if(!rst_n) begin
@@ -58,7 +71,7 @@ always @(posedge clk_8m or negedge rst_n) begin
 		count_reg   <= 4'd0;
 	end
 	else begin
-		if(count_reg == 4'd9) begin
+		if(count_reg == 4'd39) begin
 			count_reg 	<= 4'd0;
 			clk_i 		<= ~clk_i;
 		end
@@ -68,7 +81,6 @@ always @(posedge clk_8m or negedge rst_n) begin
 		end
 	end
 end
-
 
 always@(posedge clk_i)
 begin
@@ -114,13 +126,19 @@ iic_drive iic_drive_r(
 	.busy				(busy				),
 	.err                (err                ),
 	.rd_data			(rd_data			),
-	.sda_o				(sda_o)	
+	.sda_o				(sda_o		),			// SDA output
+	.sda_t				(sda_t		),			// SDA tri-state
+	.sda_i				(sda_i		),
+	.nstate					(nstate)	,
+	.Rec_count			(Rec_count)
+		// SDA input
 );
 
   clk_wiz_0 clk_wiz_u
    (
     // Clock out ports
     .clk_out1(clk_8m),     // output clk_out1
+	.clk_out2(clk_24m),
     // Status and control signals
     .locked(rst_n),       // output locked
    // Clock in ports
@@ -135,7 +153,9 @@ vio_0 vio_u (
   .probe_out1(IIC_en_tri),  // output wire [0 : 0] probe_out1
   .probe_out2(i2c_device_addr),  // output wire [0 : 0] probe_out2
   .probe_out3(register),  // output wire [0 : 0] probe_out3
-  .probe_out4(data_byte)  // output wire [0 : 0] probe_out4
+  .probe_out4(data_byte) // output wire [0 : 0] probe_out4
+  // output wire [0 : 0] probe_out5
+  
 );
 
 ila_0 ila_u (
@@ -144,10 +164,13 @@ ila_0 ila_u (
 	.probe0(sda_o), // input wire [0:0]  probe0  
 	.probe1(SCK), // input wire [0:0]  probe1 
 	.probe2(busy), // input wire [0:0]  probe2 
-	.probe3(err), // input wire [0:0]  probe3 
-	.probe4(rd_data)
+	.probe3(TESTSDI), // input wire [0:0]  probe3 
+	.probe4(rd_data),
+	.probe5(sda_t),
+	.probe6(nstate),
+	.probe7(clk_i),
+	.probe8(Rec_count)
 );
-
 
 // iic_reg_init iic_reg_init_r(
 // 	.clk_i				(clk_i				), 
@@ -181,28 +204,3 @@ ila_0 ila_u (
 
 
 endmodule
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
