@@ -23,7 +23,7 @@ module iic_drive(
     output wire [15:0] Rec_count,
     output wire [7:0] nstate
 );
-
+//jiancha1yixia1djisk
 
 localparam  idle         = 8'b1111_1110; // FE - 空闲状态（等待启动）
 localparam  start_bit    = 8'b1111_1101; // FD - 起始位状态（产生START条件）
